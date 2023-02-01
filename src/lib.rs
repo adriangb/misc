@@ -9,6 +9,8 @@ fn run(batch: RecordBatch) -> () {
     for col in batch.columns() {
         if let Some(bitmap) = col.data_ref().null_bitmap() {
             println!("bitmap bit len = {:?}", bitmap.bit_len());
+        } else {
+            println!("column has no null bitmap")
         }
         for idx in 0..rows {
             println!("is_null = {:?}", col.is_null(idx));

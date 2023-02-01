@@ -17,7 +17,7 @@ jobs:
           maturin-version: "v0.14.0"
           args: --out dist
       - name: Run Cargo test
-        run: cargo test
+        run: cargo test -- --nocapture
       - name: Run Python test
         run: |
           pip install dist/arrow_bug_demo*.whl --force-reinstall
