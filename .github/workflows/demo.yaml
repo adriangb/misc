@@ -15,7 +15,7 @@ jobs:
         with:
           target: x86_64
           maturin-version: "v0.14.0"
-          args: --develop --out dist
+          args: --out dist
       - name: Run Cargo test
         run: cargo test
       - name: Run Python test
