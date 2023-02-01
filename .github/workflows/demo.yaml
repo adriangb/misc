@@ -21,4 +21,4 @@ jobs:
       - name: Run Python test
         run: |
           pip install dist/arrow_bug_demo*.whl --force-reinstall
-          python test.py
+          RUST_BACKTRACE=full python test.py
