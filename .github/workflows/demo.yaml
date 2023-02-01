@@ -16,7 +16,6 @@ jobs:
           target: x86_64
           maturin-version: "v0.14.0"
           args: --release --out dist
-          maturin-version: "v0.14.0"
       - name: Run Cargo test
         run: cargo test
       - name: Run Python test
