@@ -1,45 +1,67 @@
-use pyo3::prelude::*;
-use pyo3::Python;
+use pyo3::{prelude::*, PyVisit, PyTraverseError};
 
-use arrow::pyarrow::PyArrowConvert;
-use arrow::record_batch::RecordBatch;
+#[pyclass]
+struct WithoutGc {
+    #[pyo3(get)]
+    obj: Option<Py<PyAny>>,
+}
 
-fn run(batch: RecordBatch) -> () {
-    let rows = batch.num_rows();
-    for col in batch.columns() {
-        if let Some(bitmap) = col.data_ref().null_bitmap() {
-            println!("bitmap bit len = {:?}", bitmap.bit_len());
-        } else {
-            println!("column has no null bitmap")
-        }
-        for idx in 0..rows {
-            println!("is_null = {:?}", col.is_null(idx));
-        }
+#[pymethods]
+impl WithoutGc {
+    #[new]
+    fn new(obj: Py<PyAny>) -> Self {
+        Self { obj: Some(obj) }
     }
 }
 
-#[pyfunction]
-fn err(batch: &PyAny) -> () {
-    let batch = RecordBatch::from_pyarrow(batch).unwrap();
-    run(batch)
+#[pyclass]
+struct WithTraverse {
+    #[pyo3(get)]
+    obj: Option<Py<PyAny>>,
 }
 
+#[pymethods]
+impl WithTraverse {
+    #[new]
+    fn new(obj: Py<PyAny>) -> Self {
+        Self { obj: Some(obj) }
+    }
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        visit.call(&self.obj)
+    }
+    fn __clear__(&mut self) {}
+}
+
+
+#[pyclass]
+struct WithTraverseAndClear {
+    #[pyo3(get)]
+    obj: Option<Py<PyAny>>,
+}
+
+#[pymethods]
+impl WithTraverseAndClear {
+    #[new]
+    fn new(obj: Py<PyAny>) -> Self {
+        Self { obj: Some(obj) }
+    }
+    fn __traverse__(&self, visit: PyVisit<'_>) -> Result<(), PyTraverseError> {
+        if let Some(obj) = &self.obj {
+            visit.call(obj)?;
+        }
+        Ok(())
+    }
+    fn __clear__(&mut self) {
+        self.obj = None;
+    }
+}
+
+
+/// A Python module implemented in Rust.
 #[pymodule]
-fn arrow_bug_demo(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(err, m)?)?;
+fn demo(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<WithoutGc>()?;
+    m.add_class::<WithTraverse>()?;
+    m.add_class::<WithTraverseAndClear>()?;
     Ok(())
-}
-
-#[test]
-fn run_test() -> () {
-    use std::{fs::File, path::Path};
-    use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
-
-    let path = Path::new("bad.parquet");
-    let file = File::open(&path).unwrap();
-    let builder = ParquetRecordBatchReaderBuilder::try_new(file).unwrap();
-    let mut reader = builder.build().unwrap();
-    let record_batch = reader.next().unwrap().unwrap();
-    let slice = record_batch.slice(9, record_batch.num_rows()-9);
-    run(slice)
 }
