@@ -10,5 +10,4 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
-
-
+dependencies = ["memory-profiler>=0.61.0", "jupyter>=1.0.0"]
