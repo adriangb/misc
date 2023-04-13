@@ -39,7 +39,7 @@ async def run_test(url: str, n_requests: int, n_workers: int) -> Result:
 
 async def main() -> None:
     urls = {"gunicorn": "http://34.69.142.42:80", "uvicorn": "http://34.30.96.230:80"}
-    tests = {"io": "/do_io?time_s=1", "cpu": "/do_cpu?time_s=5"}
+    tests = {"io": "/do_io?time_s=1", "cpu": "/do_cpu?time_s=5", "nothing": "/do_io?time_s=0"}
     for test_name, test_url_suffix in tests.items():
         for target, url in urls.items():
             full_url = f"{url}{test_url_suffix}"
