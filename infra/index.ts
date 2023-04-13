@@ -8,6 +8,10 @@ import { execSync } from "child_process";
 
 const gitHash = execSync("git rev-parse --short HEAD").toString().trim();
 
+const numGunicornReplicas = 2;
+const numGunicornvCPUs = 4;
+const memoryMiBPervCPU = 1024;
+
 // We build and push the image to the GCP project's Artifact Registry.
 // Make sure docker is configured to use docker registry by running
 // > gcloud auth configure-docker
@@ -36,18 +40,6 @@ const uvicornImage = new docker.Image(
     },
   }
 );
-const benchImage = new docker.Image(
-  "bench-image",
-  {
-    imageName: pulumi.interpolate`us-docker.pkg.dev/${config.projectId}/${dockerRegistryId}/bench:${gitHash}`,
-    build: {
-      context: "../",
-      dockerfile: "../Dockerfile",
-      target: "bench",
-      extraOptions: ["--platform", "amd64"], // for compatibility with running on ARM MacBooks
-    },
-  }
-);
 
 const uvicornDeployment = new k8s.apps.v1.Deployment(
   "uvicorn-deployment",
@@ -56,7 +48,7 @@ const uvicornDeployment = new k8s.apps.v1.Deployment(
       name: "uvicorn",
     },
     spec: {
-      replicas: 4 * 8,
+      replicas: numGunicornvCPUs * numGunicornReplicas,
       selector: { matchLabels: {app: "uvicorn"} },
       template: {
         metadata: {
@@ -71,7 +63,7 @@ const uvicornDeployment = new k8s.apps.v1.Deployment(
               resources: {
                 requests: {
                   cpu: "1000m",
-                  memory: "512m",
+                  memory: `${memoryMiBPervCPU}Mi`,
                 },
               },
             },
@@ -105,7 +97,7 @@ const gunicornDeployment = new k8s.apps.v1.Deployment(
       name: "gunicorn",
     },
     spec: {
-      replicas: 4,
+      replicas: numGunicornReplicas,
       selector: { matchLabels: {app: "gunicorn"} },
       template: {
         metadata: {
@@ -117,10 +109,11 @@ const gunicornDeployment = new k8s.apps.v1.Deployment(
               name: "gunicorn",
               image: gunicornImage.imageName,
               ports: [{ containerPort: 80 }],
+              env: [{name: "WEB_CONCURRENCY", value: `${numGunicornvCPUs}`}],
               resources: {
                 requests: {
-                  cpu: "8000m",
-                  memory: "4096m",
+                  cpu: `${1000 * numGunicornvCPUs}m`,
+                  memory: `${1024 * numGunicornvCPUs}Mi`,
                 },
               },
             },
@@ -146,64 +139,3 @@ const gunicornService = new k8s.core.v1.Service(
   { provider: cluster.provider}
 );
 export const gunicornAppAddress = gunicornService.status.apply(s => `http://${s.loadBalancer.ingress[0].ip}:80`);
-
-const benchmarkDeployment = new k8s.apps.v1.Deployment(
-  "bench-deployment",
-  {
-    metadata: {
-      name: "bench",
-    },
-    spec: {
-      replicas: 1,
-      selector: { matchLabels: {app: "bench"} },
-      template: {
-        metadata: {
-          labels: {app: "bench"},
-        },
-        spec: {
-          containers: [
-            {
-              name: "bench",
-              image: benchImage.imageName,
-              ports: [{ containerPort: 80 }],
-              resources: {
-                // Give this thing hella resources to make
-                // sure it's not the bottleneck / equalizer
-                requests: {
-                  cpu: "16000m",
-                  memory: "16Gi",
-                },
-              },
-              env: [
-                {
-                  name: "GUNICORN_HOST",
-                  value: gunicornAppAddress,
-                },
-                {
-                  name: "UVICORN_HOST",
-                  value: uvicornAppAddress,
-                }
-              ]
-            },
-          ],
-        },
-      },
-    },
-  },
-  {
-    provider: cluster.provider,
-  }
-);
-const benchmarkService = new k8s.core.v1.Service(
-  "bench-service",
-  {
-    metadata: { labels: benchmarkDeployment.metadata.labels },
-    spec: {
-      type: "LoadBalancer",
-      ports: [{ port: 80 }],
-      selector: benchmarkDeployment.spec.template.metadata.labels,
-    },
-  },
-  { provider: cluster.provider}
-);
-export const benchAppAddress = benchmarkService.status.apply(s => `http://${s.loadBalancer.ingress[0].ip}:80`);

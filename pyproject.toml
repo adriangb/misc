@@ -1,13 +1,26 @@
 [tool.poetry]
-name = "misc"
-version = "0.1.0"
-description = ""
+name = "app"
+version = "0.0.0"
+description = "Demo app"
 authors = []
 
 [tool.poetry.dependencies]
 python = "^3.10"
-fork-memory = { path = "workspaces/fork-memory", develop = true }
+fastapi = ">=0.95.0"
+httpx = ">=0.24.0"
+numpy = "^1.24.2"
+
+[tool.poetry.group.uvicorn.dependencies]
+uvicorn = {extras = ["standard"], version = ">=0.21.1"}
+
+[tool.poetry.group.gunicorn.dependencies]
+uvicorn = {extras = ["standard"], version = ">=0.21.1"}
+gunicorn = ">=20.1.0"
+
+
+[tool.poetry.group.dev.dependencies]
+typer = "^0.7.0"
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"

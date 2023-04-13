@@ -1,19 +1,17 @@
-FROM python:3.10-slim as reqs
-COPY ./pyproject.toml ./
-COPY ./poetry.lock ./
-RUN pip install poetry && \
-    poetry export -f requirements.txt -o requirements.txt
-
 FROM python:3.10-slim as base
 RUN mkdir /opt/project
 WORKDIR /opt/project
-COPY --from=reqs ./requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-COPY ./app ./app/
-ENV PYTHONPATH "${PYTHONPATH}:/opt/project"
+COPY app/ app/
+COPY pyproject.toml poetry.lock .
 
 FROM base as uvicorn
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80", "--log-level", "error"]
+RUN pip install -U wheel poetry && \
+    poetry config virtualenvs.create false && \
+    poetry install --only main,uvicorn
+CMD ["poetry", "run", "uvicorn", "--host", "0.0.0.0", "--port", "80", "--log-level", "error", "app.main:app"]
 
 FROM base as gunicorn
-CMD ["gunicorn", "--workers", "8", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:80", "app.main:app"]
+RUN pip install -U wheel poetry && \
+    poetry config virtualenvs.create false && \
+    poetry install --only main,gunicorn
+CMD ["poetry", "run", "gunicorn", "--preload", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:80", "--timeout", "0", "app.main:app"]
