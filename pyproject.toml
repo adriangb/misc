@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "misc"
+version = "0.1.0"
+description = ""
+authors = ["Adrian Garcia Badaracco <1755071+adriangb@users.noreply.github.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<4.0"
+pgpq = "*"
+
+
+[tool.poetry.extras]
+test = ["pgpq"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
