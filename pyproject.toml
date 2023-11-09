@@ -11,4 +11,4 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
 
-dependencies = ["pyarrow==11.0.0"]
+dependencies = ["pyarrow==14.0.1"]
